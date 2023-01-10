@@ -3,9 +3,13 @@ package io.vertx.ext.web.handler.graphql;
 import java.math.BigInteger;
 import java.util.Arrays;
 
+import graphql.GraphQL;
 import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingEnvironment;
 import graphql.schema.idl.RuntimeWiring;
+import io.vertx.core.Promise;
+import io.vertx.ext.web.Router;
+import io.vertx.ext.web.handler.BodyHandler;
 
 import static graphql.schema.idl.RuntimeWiring.newRuntimeWiring;
 
@@ -19,6 +23,23 @@ public class BorderServer extends GraphQLServer {
       stringBuilder.append((char) i);
     }
     return stringBuilder.toString();
+  }
+
+
+  @Override
+  public void start(Promise<Void> startPromise) {
+    GraphQL graphQL = createGraphQL();
+    Router router = Router.router(getVertx());
+    router.route().handler(BodyHandler.create());
+    router.route("/graphql").handler(GraphQLHandler.create(graphQL));
+    router.get("/health").handler(routingContext -> routingContext.response().end("OK"));
+    vertx.createHttpServer().requestHandler(router).listen(8081, httpServerAsyncResult -> {
+      if (httpServerAsyncResult.succeeded()) {
+        startPromise.complete();
+      } else {
+        startPromise.fail(httpServerAsyncResult.cause());
+      }
+    });
   }
 
   @Override
